@@ -15,18 +15,17 @@ import static elevator.Request.pressElevatorButton;
 import static elevator.Request.pressLevelButton;
 import static elevator.runner.RunnerConfiguration.*;
 import static java.util.Arrays.asList;
-import static java.util.Arrays.sort;
 
 public class Main {
 
     public static void main(String[] args) throws InterruptedException, ClassNotFoundException, InstantiationException, IllegalAccessException, IOException, InvocationTargetException {
-        // runWithGUI();
+//        runWithGUI();
         //or:
-         runWithConsole();
+//         runWithConsole();
         //or:
-//         runWithConsole_andDataFile();
+         runWithConsole_andDataFile();
         //or:
-        // runWithGUI_NoGenerator_ForRecording();
+//        runWithGUI_NoGenerator_ForRecording();
     }
 
     private static void runWithConsole() throws InterruptedException, ClassNotFoundException,
@@ -43,18 +42,18 @@ public class Main {
     private static void runWithConsole_andDataFile() throws InterruptedException, ClassNotFoundException,
             InstantiationException, IOException, IllegalAccessException {
         ConsoleRunner.main(new String[]{
-                FLOOR_COUNT + "=10",
-                ELEVATOR_COUNT + "=5",
+                FLOOR_COUNT + "=5",
+                ELEVATOR_COUNT + "=1",
                 ROUTING_CONTROLLER_CLASS_NAME + "=" + MyRoutingController.class.getName(),
-                TEST_DATA_FILE + "=" + "recorded.elevators" //rename to recorded data file
+                TEST_DATA_FILE + "=" + "A5F-1E-100T" //rename to recorded data file
         });
     }
 
     private static void runWithGUI() throws ClassNotFoundException, IOException, InstantiationException,
             InterruptedException, IllegalAccessException, InvocationTargetException {
         GuiRunner.main(new String[]{
-                FLOOR_COUNT + "=10",
-                ELEVATOR_COUNT + "=5",
+                FLOOR_COUNT + "=5",
+                ELEVATOR_COUNT + "=2",
                 ROUTING_CONTROLLER_CLASS_NAME + "=" + MyRoutingController.class.getName(),
                 GENERATOR_CLASS_NAME + "=" + MyButtonPressGenerator.class.getName(),
                 //or comment out the above to run with the below data file (you will have to record a data file with GuiRunner first):
@@ -76,47 +75,61 @@ public class Main {
     public static class MyRoutingController implements RoutingController {
 
         private RoutingOperator operator;
-        private Map<Integer, List<Integer>> elevatorAvaiable;
+        private Map<Integer, LinkedList<Integer>> elevatorAvaiable;
 
         @Override
         public void initialize(RoutingOperator operator) {
             this.operator = operator;
             this.elevatorAvaiable = new HashMap<>();
             for (int i = 0; i <operator.getElevatorCount() ; i++) {
-                elevatorAvaiable.put(i,new LinkedList<>());
+                elevatorAvaiable.put(i,new  LinkedList<>());
             }
             //I can observe more events than just 'elevatorButtonPressed' and 'levelButtonPressed" if I want to:
-            operator.observe().whenElevatorMoved((elevatorID, level) -> System.out.println
-                    ("Hey, I can observe elevator moves! E#" + elevatorID + " is on level " + level + ". Maybe I will reroute it now."));
+//            operator.observe().whenElevatorMoved((elevatorID, level) -> System.out.println
+//                    ("Hey, I can observe elevator moves! E#" + elevatorID + " is on level " + level + ". Maybe I will reroute it now."));
             //or: operator.observe().whenElevatorRequestCompleted(...);
             //or: operator.observe().whenLevelRequestCompleted(...);
         }
-//        public int smallestSizeElevator(){
-//            int elevatorID;
-//            for (int i = 0; i <elevatorAvaiable.size() ; i++) {
-//                int actual ;
-//                if()
-//            }
-//
-//            return elevatorID;
-//        }
+
+        public int closestElevator(int demandLevel) {
+            int elevatorID = 0;
+            int last = 0;
+
+            for (int i : elevatorAvaiable.keySet()) {
+                if (operator.getElevatorInfo(i).getCurrentPosition() == demandLevel) {
+                    elevatorID = i;
+                    break;
+                }
+
+                if (i == 0) {
+                    last = elevatorAvaiable.get(i).size();
+                    elevatorID = i;
+
+                } else if (i != 0) {
+                    if (elevatorAvaiable.get(i).size() < last)
+                        elevatorID = i;
+                }
+            }
+            return elevatorID;
+
+        }
+
 
         @Override
         public void elevatorButtonPressed(int elevatorID, Integer level) {
-            List<Integer> listOfLevels = new LinkedList<>(operator.getElevatorInfo(elevatorID).getRequestQueue());
-            elevatorAvaiable.put(elevatorID,listOfLevels);
 
+            elevatorAvaiable.get(elevatorID).add(level);
+            elevatorAvaiable.put(elevatorID, elevatorAvaiable.get(elevatorID));
             operator.setRoute(elevatorID, elevatorAvaiable.get(elevatorID));
 
         }
 
         @Override
         public void levelButtonPressed(Integer level) {
-            int someElevator = 1;
-            List<Integer> integerList= elevatorAvaiable.get(someElevator);
-            integerList.add(level);
+            int someElevator = closestElevator(level);
+            elevatorAvaiable.get(someElevator).add(level) ;
 
-            operator.setRoute(someElevator,integerList);
+            operator.setRoute(someElevator,elevatorAvaiable.get(someElevator));
 
             //which elevator should go there?
 		 //int someElevator = ???
